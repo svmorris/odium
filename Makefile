@@ -1,15 +1,21 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -O2
-SRC = src/demo.c
+SRC = src/server.c src/tmux_handler.c
+OBJ = $(SRC:.c=.o)
 OUT = server
 
 all: $(OUT)
 
-$(OUT): $(SRC)
-	$(CC) $(CFLAGS) -o $(OUT) $(SRC)
+# Link object files into the final binary
+$(OUT): $(OBJ)
+	$(CC) $(CFLAGS) -o $@ $(OBJ)
+
+# Compile each .c file into a .o file
+%.o: %.c %.h
+	$(CC) $(CFLAGS) -c $< -o $@
 
 run: $(OUT)
 	./$(OUT)
 
 clean:
-	rm -f $(OUT)
+	rm -f $(OUT) $(OBJ)

@@ -2,18 +2,65 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <pthread.h>
 #include <arpa/inet.h>
+
+#include "tmux_handler.h"
 
 #define PORT 31338
 #define CONN_BACKLOG 10
 #define BUFFER_SIZE 1024
 
 
+void start_server();
 void *handle_connection(void *sock);
 
 
-int main()
+int main(int argc, char *argv[])
+{
+    // check if we are already running on a tmux session
+    if (getenv("TMUX") != NULL)
+    {
+        int expected_name_size = 8+1;
+        char *tmux_name = calloc(expected_name_size, sizeof(char));
+        if (tmux_name == NULL)
+        {
+            perror("Memory allocation failed");
+            exit(-8);
+        }
+        tmux_get_name(tmux_name, expected_name_size);
+
+        if (tmux_name[0] == '\0')
+        {
+            puts("tmux_get_name failed");
+            exit(-9);
+        }
+
+        /* printf("'%s' == '%s'\n", TMUX_SESSION_NAME, tmux_name); */
+
+        if (strcmp(tmux_name, TMUX_SESSION_NAME) != 0)
+        {
+            printf("Taking over current tmux shell...\n");
+            if (!tmux_change_name())
+                exit(-10);
+        }
+    }
+    else
+    {
+        printf("%s\n", argv[0]);
+        // suicide -> launch with tmux
+        tmux_relaunch(argc, argv);
+    }
+
+
+    start_server();
+    return 0;
+}
+
+
+
+void start_server()
 {
     int server_sock;
     int *client_sock;
@@ -32,6 +79,10 @@ int main()
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     server_addr.sin_port = htons(PORT);
+
+    // reuse socket ports
+    int opt = 1;
+    setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
     // Bind the server socket
     if (bind(server_sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
@@ -92,11 +143,7 @@ int main()
     }
 
     close(server_sock);
-    return 0;
 }
-
-
-
 
 
 void *handle_connection(void *sock)
