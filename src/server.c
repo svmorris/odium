@@ -1,24 +1,37 @@
 #include <stdio.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <pthread.h>
+
+#include <sys/un.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+
 #include <arpa/inet.h>
+#include <netinet/in.h>
 
 #include "tmux_handler.h"
 
-#define PORT 31338
+#define UPORT 31398
 #define CONN_BACKLOG 10
 #define BUFFER_SIZE 1024
 
-
-void start_server();
-void *handle_connection(void *sock);
+void send_fd(int sock, int fd_to_send);
+void start_server(int tcp_port);
+void *handle_connection(void *csock, void *usock);
 
 
 int main(int argc, char *argv[])
 {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <tcp_port>\n", argv[0]);
+        exit(1);
+    }
+    int tcp_port = atoi(argv[1]);
+
     // check if we are already running on a tmux session
     if (getenv("TMUX") != NULL)
     {
@@ -41,7 +54,7 @@ int main(int argc, char *argv[])
 
         if (strcmp(tmux_name, TMUX_SESSION_NAME) != 0)
         {
-            printf("Taking over current tmux shell...\n");
+            printf("Taking over current tmux shell.\n");
             if (!tmux_change_name())
                 exit(-10);
         }
@@ -54,20 +67,54 @@ int main(int argc, char *argv[])
     }
 
 
-    start_server();
+    start_server(tcp_port);
     return 0;
 }
 
 
-
-void start_server()
+/*
+ * Start both a regular socket server
+ * and an internal unix socket server
+ */
+void start_server(int tcp_port)
 {
     int server_sock;
     int *client_sock;
+    int u_server_sock;
+    int u_client_sock;
     struct sockaddr_in server_addr;
     struct sockaddr_in client_addr;
     socklen_t client_addr_size = sizeof(client_addr);
 
+    // ====================== Setup the internal unix socket server ======================
+    // Unlink the socket path if it already exists
+    unlink(SOCK_PATH);
+
+    u_server_sock = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (u_server_sock < 0) {
+        perror("Failed creating internal unix socket");
+        exit(-12);
+    }
+
+    struct sockaddr_un uaddr = {0};
+    uaddr.sun_family = AF_UNIX;
+    strncpy(uaddr.sun_path, SOCK_PATH, sizeof(uaddr.sun_path)-1);
+
+    if (bind(u_server_sock, (struct sockaddr*)&uaddr, sizeof(uaddr)) < 0)
+    {
+        perror("Failed to bind internal unix socket");
+        exit(-13);
+    }
+    if (listen(u_server_sock, CONN_BACKLOG) < 0)
+    {
+        perror("Failed to set up internal socket for listening");
+        exit(-14);
+    }
+
+
+
+
+    // ====================== Setup the regular socket server ======================
     // create the socket
     if ((server_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
@@ -78,7 +125,7 @@ void start_server()
     // Server setup
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    server_addr.sin_port = htons(PORT);
+    server_addr.sin_port = htons(tcp_port);
 
     // reuse socket ports
     int opt = 1;
@@ -101,7 +148,7 @@ void start_server()
         exit(-3);
     }
 
-    printf("Started listening on port %d...\n", PORT);
+    printf("Started listening on port %d...\n", tcp_port);
 
     while (1)
     {
@@ -122,39 +169,46 @@ void start_server()
             continue;
         }
 
+        // Launch the client window
+        tmux_new_pane();
+
         printf("Connection received from %s:%d\n",
                 inet_ntoa(client_addr.sin_addr),
                 ntohs(client_addr.sin_port));
 
 
-        // Create a new thread for each client
-        pthread_t tid;
-        if (pthread_create(&tid, NULL, handle_connection, client_sock) != 0)
+        // Wait for the UI to connect back to receive
+        // its socket address
+        int u_client_sock = accept(u_server_sock, NULL, NULL);
+        if (u_client_sock < 0)
         {
-            perror("Error creating new thread to handle client connection");
+            perror("Failed accepting incoming unix socket connetion");
             close(*client_sock);
             free(client_sock);
+            continue;
         }
-        else
-        {
-            // Let the thread loose
-            pthread_detach(tid);
-        }
+
+        send_fd(u_client_sock, *client_sock);
+
+        close(u_client_sock);
+        close(*client_sock);
+        free(client_sock);
     }
 
     close(server_sock);
 }
 
 
-void *handle_connection(void *sock)
+void *handle_connection(void *csock,  void *usock)
 {
-    int client_sock = *(int *)sock;
-    free(sock);
+    int client_sock = *(int *)csock;
+    free(csock);
 
     char buffer[BUFFER_SIZE];
     memset(buffer, 0, BUFFER_SIZE);
     ssize_t bytes_read;
 
+    tmux_new_pane();
 
     while ((bytes_read = recv(client_sock, buffer, BUFFER_SIZE -1, 0)) > 0)
     {
@@ -168,4 +222,38 @@ void *handle_connection(void *sock)
     close(client_sock);
     puts("Client disconnected\n");
     return NULL;
+}
+
+
+void send_fd(int sock, int fd_to_send)
+{
+    struct msghdr msg = {0};
+    char buffer[CMSG_SPACE(sizeof(fd_to_send))];
+    memset(buffer, 0, sizeof(buffer));
+
+
+    // Normal payload (not control data). sendmsg requires some data,
+    // so we send a dummy byte "X".
+    struct iovec io = { .iov_base = (void*)"X", .iov_len = 1 };
+
+    msg.msg_iov = &io;
+    msg.msg_iovlen = 1;
+
+    msg.msg_control = buffer;
+    msg.msg_controllen = sizeof(buffer);
+
+
+    struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+    cmsg->cmsg_level = SOL_SOCKET;       // Control message is at the socket API level
+    cmsg->cmsg_type  = SCM_RIGHTS;       // We're passing rights to a file descriptor
+    cmsg->cmsg_len   = CMSG_LEN(sizeof(fd_to_send));
+
+    // Copy the fd itself into the control message payload
+    memcpy(CMSG_DATA(cmsg), &fd_to_send, sizeof(fd_to_send));
+
+    // Actually send the message (fd + dummy data)
+    if (sendmsg(sock, &msg, 0) < 0) {
+        perror("Error occured while sending fd though internal socket");
+        exit(-13);
+    }
 }

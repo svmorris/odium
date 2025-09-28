@@ -6,6 +6,9 @@
 
 #include "tmux_handler.h"
 
+
+int windows_opened = 0;
+
 /*
  * This function gets called if the application
  * detects that it is running outside of tmux.
@@ -98,7 +101,25 @@ bool tmux_change_name()
 
     pclose(fp);
     return true;
+}
 
+/*
+ * Every other pane should be opened
+ * vertically so tmux doesn't look weird
+ */
+void tmux_new_pane()
+{
+    int ret;
+
+    if (windows_opened % 3 == 0)
+        ret = system(TMUX_PANE_COMMAND_H);
+    else
+        ret = system(TMUX_PANE_COMMAND_V);
+
+    if (ret < 0)
+        perror("Something went wrong when opening tmux panes");
+
+    windows_opened++;
 }
 
 
