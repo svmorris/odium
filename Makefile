@@ -11,8 +11,8 @@ SERVER_OBJ = $(SERVER_SRC:.c=.o)
 CLIENT_OBJ = $(CLIENT_SRC:.c=.o)
 
 # Outputs
-SERVER_OUT = server
-CLIENT_OUT = client
+SERVER_OUT = odium
+CLIENT_OUT = odium-client-internal
 
 # Default target: build everything
 all: $(SERVER_OUT) $(CLIENT_OUT)

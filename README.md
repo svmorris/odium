@@ -1,8 +1,10 @@
-# revshell_c2
-Multi-revshell c2 server without the need for a gui
+# Odium
+Reverse shell handling C2 platform.
+Designed as a replacement for `nc -nlvp`, Odium can handle multiple reverse shells on the same port without the need to reset the listener. All this from within the terminal.
+
 <img width="1607" height="1039" alt="image" src="https://github.com/user-attachments/assets/82f777d4-2bad-481e-ba72-0b0bda4c21cd" />
 
-The application will open a new tmux pane for each recieved connection as shown in the image above.
+Odium builds upon tmux to automatically create a new terminal window for each incoming connection.
 
 # Features implemented
 - Server can run continuously and always accept revshell connections

@@ -50,7 +50,7 @@ int main(int argc, char **argv)
     client_fd = recv_fd(usock);
     close(usock);
 
-    printf("UI attached to client socket. Type to send, ctrl-c to quit.\n");
+    /* printf("UI attached to client socket. Type to send, ctrl-c to quit.\n"); */
 
     // Simple (and temporary) blocking loop
     // In the future this should be:

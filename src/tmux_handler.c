@@ -66,7 +66,6 @@ void tmux_get_name(char *buffer, int expected_name_size)
         return;
     }
 
-    // c2server\0
     FILE *fp;
 
     fp = popen("tmux display-message -p '#S'", "r");
