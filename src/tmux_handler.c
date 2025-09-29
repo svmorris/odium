@@ -19,7 +19,7 @@ int windows_opened = 0;
 void tmux_relaunch(int argc, char *argv[])
 {
 
-    char **tmux_args = malloc((argc + 5) * sizeof(char *));
+    char **tmux_args = malloc((argc + 9) * sizeof(char *));
     if (!tmux_args)
     {
         perror("Malloc failed while attempting to launch tmux");
@@ -28,6 +28,10 @@ void tmux_relaunch(int argc, char *argv[])
 
     int i = 0;
     tmux_args[i++] = "tmux";
+    tmux_args[i++] = "-L";
+    tmux_args[i++] = "odium";
+    tmux_args[i++] = "-f";
+    tmux_args[i++] = "./configs/tmux.conf";
     tmux_args[i++] = "new-session";
     tmux_args[i++] = "-s";
     tmux_args[i++] = (char *)TMUX_SESSION_NAME;
