@@ -53,6 +53,7 @@ int main(int argc, char *argv[])
         if (strcmp(tmux_name, TMUX_SESSION_NAME) != 0)
         {
             printf("Taking over current tmux shell.\n");
+            printf("WARNING: Odium will work worse (and look less cool) when inside tmux.");
             if (!tmux_change_name())
                 exit(-10);
         }

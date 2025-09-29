@@ -17,3 +17,4 @@ Odium builds upon tmux to automatically create a new terminal window for each in
 - Macros. E.G.: Automatic persistance, upgrading to 2-way interactive shell (up arrow, tab, and vim works)
 - Screensaves: Each revshell interaction is saved as text automatically
 - Optional notification API?
+- Single binary: The whole application is just one binary (combining server and client)
