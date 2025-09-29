@@ -179,7 +179,7 @@ void start_server(int tcp_port)
 
         // Wait for the UI to connect back to receive
         // its socket address
-        int u_client_sock = accept(u_server_sock, NULL, NULL);
+        u_client_sock = accept(u_server_sock, NULL, NULL);
         if (u_client_sock < 0)
         {
             perror("Failed accepting incoming unix socket connetion");
