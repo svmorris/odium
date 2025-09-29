@@ -50,8 +50,6 @@ int main(int argc, char *argv[])
             exit(-9);
         }
 
-        /* printf("'%s' == '%s'\n", TMUX_SESSION_NAME, tmux_name); */
-
         if (strcmp(tmux_name, TMUX_SESSION_NAME) != 0)
         {
             printf("Taking over current tmux shell.\n");
@@ -66,6 +64,7 @@ int main(int argc, char *argv[])
         tmux_relaunch(argc, argv);
     }
 
+    puts(SPLASH);
 
     start_server(tcp_port);
     return 0;
