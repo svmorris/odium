@@ -1,44 +1,58 @@
+# Forgive me for using chatgpt here.
 CC = gcc
-CFLAGS = -Wall -Wextra -O2
+# Strict compile for normal builds
+CFLAGS = -Wall -Wextra -Werror -O2
+# Debug compile (no Werror, includes debug symbols)
 DEBUGFLAGS = -Wall -Wextra -g -O0
+
+# Directories
+BIN_DIR = bin
+BUILD_DIR = build
 
 # Sources
 SERVER_SRC = src/server.c src/tmux_handler.c
 CLIENT_SRC = src/client.c
 
-# Objects
-SERVER_OBJ = $(SERVER_SRC:.c=.o)
-CLIENT_OBJ = $(CLIENT_SRC:.c=.o)
+# Objects (in build dir)
+SERVER_OBJ = $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SERVER_SRC))
+CLIENT_OBJ = $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(CLIENT_SRC))
 
-# Outputs
-SERVER_OUT = odium
-CLIENT_OUT = odium-client-internal
+# Outputs (in bin dir)
+SERVER_OUT = $(BIN_DIR)/odium
+CLIENT_OUT = $(BIN_DIR)/odium-client-internal
 
-# Default target: build everything
+# Default target: build everything strictly
 all: $(SERVER_OUT) $(CLIENT_OUT)
 
-# Build server binary
-server: $(SERVER_OUT)
+# Build odium (server)
+odium: $(SERVER_OUT)
 
-$(SERVER_OUT): $(SERVER_OBJ)
+$(SERVER_OUT): $(SERVER_OBJ) | $(BIN_DIR)
 	$(CC) $(CFLAGS) -o $@ $(SERVER_OBJ)
 
-# Build client binary
-client: $(CLIENT_OUT)
+# Build odium-client-internal
+odium-client-internal: $(CLIENT_OUT)
 
-$(CLIENT_OUT): $(CLIENT_OBJ)
+$(CLIENT_OUT): $(CLIENT_OBJ) | $(BIN_DIR)
 	$(CC) $(CFLAGS) -o $@ $(CLIENT_OBJ)
 
-# Debug build (both server and client with debug flags)
+# Generic rule to compile .c -> .o into build dir
+$(BUILD_DIR)/%.o: src/%.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Debug build (both odium and client with debug flags)
 debug: clean
 	$(MAKE) CFLAGS="$(DEBUGFLAGS)" all
 
-# Generic rule to compile .c -> .o
-%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+# Ensure bin/ and build/ dirs exist
+$(BIN_DIR):
+	mkdir -p $(BIN_DIR)
+
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
 
 # Run helpers
-run-server: $(SERVER_OUT)
+run-odium: $(SERVER_OUT)
 	./$(SERVER_OUT)
 
 run-client: $(CLIENT_OUT)
@@ -46,4 +60,4 @@ run-client: $(CLIENT_OUT)
 
 # Cleanup
 clean:
-	rm -f $(SERVER_OUT) $(CLIENT_OUT) $(SERVER_OBJ) $(CLIENT_OBJ)
+	rm -rf $(BIN_DIR) $(BUILD_DIR)

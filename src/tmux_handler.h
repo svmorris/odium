@@ -22,9 +22,11 @@
 // string as it leaves less room for accidentally
 // introduced vulnerabilities in the future.
 #define TMUX_RENAME_COMMAND "tmux rename-session odium_c2\0"
-#define TMUX_PANE_COMMAND_H "tmux split-window -h './odium-client-internal "  SOCK_PATH  "'"
-#define TMUX_PANE_COMMAND_V "tmux split-window -v './odium-client-internal "  SOCK_PATH  "'"
-
+// ./bin/o.. -- This forces you to run it from only the project directory.
+// I'm not a big fan of it, but I'm planning to make this a single
+// binary soon so its good enough for now.
+#define TMUX_PANE_COMMAND_H "tmux split-window -h './bin/odium-client-internal "  SOCK_PATH  "'"
+#define TMUX_PANE_COMMAND_V "tmux split-window -v './bin/odium-client-internal "  SOCK_PATH  "'"
 
 bool tmux_change_name();
 void tmux_new_pane();
