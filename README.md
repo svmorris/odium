@@ -19,3 +19,4 @@ Odium builds upon tmux to automatically create a new terminal window for each in
 - Screensaves: Each revshell interaction is saved as text automatically
 - Optional notification API?
 - Single binary: The whole application is just one binary (combining server and client)
+- optional client that works with more features than standard revshelss
