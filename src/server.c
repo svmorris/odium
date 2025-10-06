@@ -64,7 +64,9 @@ int main(int argc, char *argv[])
         tmux_relaunch(argc, argv);
     }
 
-    tmux_set_pane_name("");
+    char pane_name[100];
+    snprintf(pane_name, sizeof(pane_name), "Listening: %s", argv[1]);
+    tmux_set_pane_name(pane_name);
 
     puts(SPLASH);
 
