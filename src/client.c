@@ -9,11 +9,18 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/un.h>
+#include <stdbool.h>
+#include <sys/types.h>
+#include <arpa/inet.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+
+#include "tmux_handler.h"
 
 # define BUFFER_SIZE 4096
 
 int recv_fd(int sock);
+int get_peer_address(int fd, char *ip_str, size_t ip_str_len);
 
 int main(int argc, char **argv)
 {
@@ -50,7 +57,13 @@ int main(int argc, char **argv)
     client_fd = recv_fd(usock);
     close(usock);
 
-    /* printf("UI attached to client socket. Type to send, ctrl-c to quit.\n"); */
+
+    // Set the tmux pane name
+    char *ip_str = malloc(INET6_ADDRSTRLEN);
+    if (get_peer_address(client_fd, ip_str, INET6_ADDRSTRLEN) == 0)
+        tmux_set_pane_name(ip_str);
+    else
+        tmux_set_pane_name("Unknown");
 
     // Simple (and temporary) blocking loop
     // In the future this should be:
@@ -74,6 +87,32 @@ int main(int argc, char **argv)
 }
 
 
+// Get a string representation of the connected sockets IP address
+int get_peer_address(int fd, char *ip_str, size_t ip_str_len)
+{
+     struct sockaddr_storage addr;
+    socklen_t len = sizeof(addr);
+
+    if (getpeername(fd, (struct sockaddr*)&addr, &len) == -1)
+        return -1;
+
+    const void *src = NULL;
+
+    if (addr.ss_family == AF_INET) {
+        const struct sockaddr_in *s = (const struct sockaddr_in *)&addr;
+        src = &s->sin_addr;
+    } else if (addr.ss_family == AF_INET6) {
+        const struct sockaddr_in6 *s = (const struct sockaddr_in6 *)&addr;
+        src = &s->sin6_addr;
+    } else {
+        return -1;
+    }
+
+    if (inet_ntop(addr.ss_family, src, ip_str, ip_str_len) == NULL)
+        return -1;
+
+    return 0;
+}
 
 int recv_fd(int sock)
 {

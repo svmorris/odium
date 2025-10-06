@@ -28,8 +28,9 @@
 #define TMUX_PANE_COMMAND_H "tmux split-window -h './bin/odium-client-internal "  SOCK_PATH  "'"
 #define TMUX_PANE_COMMAND_V "tmux split-window -v './bin/odium-client-internal "  SOCK_PATH  "'"
 
-bool tmux_change_name();
 void tmux_new_pane();
+bool tmux_change_name();
+void tmux_set_pane_name(char *name);
 void tmux_relaunch(int argc, char *argv[]);
 void tmux_get_name(char *buffer, int expected_name_size);
 

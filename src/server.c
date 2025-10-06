@@ -21,7 +21,6 @@
 
 void send_fd(int sock, int fd_to_send);
 void start_server(int tcp_port);
-void *handle_connection(void *csock, void *usock);
 
 
 int main(int argc, char *argv[])
@@ -64,6 +63,8 @@ int main(int argc, char *argv[])
         // suicide -> launch with tmux
         tmux_relaunch(argc, argv);
     }
+
+    tmux_set_pane_name("");
 
     puts(SPLASH);
 
@@ -198,31 +199,6 @@ void start_server(int tcp_port)
     close(server_sock);
 }
 
-
-void *handle_connection(void *csock,  void *usock)
-{
-    int client_sock = *(int *)csock;
-    free(csock);
-
-    char buffer[BUFFER_SIZE];
-    memset(buffer, 0, BUFFER_SIZE);
-    ssize_t bytes_read;
-
-    tmux_new_pane();
-
-    while ((bytes_read = recv(client_sock, buffer, BUFFER_SIZE -1, 0)) > 0)
-    {
-        buffer[bytes_read] = '\0';
-        printf("c: %s\n", buffer);
-
-        // just echo
-        send(client_sock, buffer, bytes_read, 0);
-    }
-
-    close(client_sock);
-    puts("Client disconnected\n");
-    return NULL;
-}
 
 
 void send_fd(int sock, int fd_to_send)

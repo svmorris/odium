@@ -3,11 +3,43 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <sys/wait.h>
 
 #include "tmux_handler.h"
 
 
 int windows_opened = 0;
+
+int safer_exec(const char *path, char *const argv[])
+{
+    pid_t pid = fork();
+
+    if (pid < 0)
+    {
+        perror("Failed to create child process while trying to create an external command");
+        return -1;
+    }
+
+    if (pid == 0)
+    {
+        execvp(path, argv);
+        perror("Failed to execute external command");
+        return -1;
+    }
+
+    int status;
+    if (waitpid(pid, &status, 0) == -1)
+    {
+        perror("An error occurred while waiting for subprocess to join");
+        return -1;
+    }
+
+    if (WIFEXITED(status))
+        return WEXITSTATUS(status);
+    else
+        return -2;
+}
+
 
 /*
  * This function gets called if the application
@@ -125,4 +157,24 @@ void tmux_new_pane()
     windows_opened++;
 }
 
+void tmux_set_pane_name(char *name)
+{
+    // tmux select-pane -T <name> \0
+    char **tmux_args = malloc(5 *sizeof(char *));
+    if (!tmux_args)
+    {
+        perror("Malloc failed during session rename");
+        return;
+    }
 
+    int i = 0;
+    tmux_args[i++] = "tmux";
+    tmux_args[i++] = "select-pane";
+    tmux_args[i++] = "-T";
+    tmux_args[i++] = name;
+    tmux_args[i] = NULL;
+
+    if ((safer_exec("tmux", tmux_args)) == 0)
+        return;
+    fprintf(stderr, "Error occured while trying to rename tmux pane...");
+}
