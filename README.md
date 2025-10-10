@@ -2,7 +2,8 @@
 Reverse shell handling C2 platform.
 Designed as a replacement for `nc -nlvp`, Odium can handle multiple reverse shells on the same port without the need to reset the listener. All this from within the terminal.
 
-<img width="1552" height="1046" alt="image" src="https://github.com/user-attachments/assets/f7b1d26b-546d-444f-a067-7fb67b6fc0fa" />
+<img width="1820" height="1039" alt="image" src="https://github.com/user-attachments/assets/504fc9ad-f38b-4d6d-87b0-4b56a03aca65" />
+
 
 
 Odium builds upon tmux to automatically create a new terminal window for each incoming connection.
