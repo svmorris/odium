@@ -3,6 +3,8 @@
  * NOTE: this must be run by the server to function correctly
  */
 
+#define _POSIX_C_SOURCE 200809L
+
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
