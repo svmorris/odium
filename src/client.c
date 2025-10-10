@@ -5,6 +5,9 @@
 
 #define _POSIX_C_SOURCE 200809L
 
+#include <poll.h>
+#include <poll.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -12,6 +15,7 @@
 #include <unistd.h>
 #include <sys/un.h>
 #include <stdbool.h>
+#include <termios.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -23,6 +27,7 @@
 
 int recv_fd(int sock);
 int get_peer_address(int fd, char *ip_str, size_t ip_str_len);
+static void terminal_setup(void);
 
 int main(int argc, char **argv)
 {
@@ -67,21 +72,88 @@ int main(int argc, char **argv)
     else
         tmux_set_pane_name("Unknown");
 
-    // Simple (and temporary) blocking loop
-    // In the future this should be:
-    //  A: non-blocking: make sure the client can always receive when typing
-    //  B: interactive shell via poll()/select()
-    ssize_t n;
+
+    // Set the client_fd socket to non-blocking
+    int flags = fcntl(client_fd, F_GETFL, 0);
+    fcntl(client_fd, F_SETFL, flags | O_NONBLOCK);
+
+
+    // Start the terminal
+    terminal_setup();
+
+    struct pollfd pfd = {
+        .fd = STDIN_FILENO,
+        .events = POLLIN
+    };
+
+    ssize_t len = 0;
     char buffer[BUFFER_SIZE];
-    while(1)
+    unsigned char line_buffer[512];
+
+
+    // The main loop currently crashes when it lopps
+    // This is something to do with the keyuboard inputs
+    while (true)
     {
-        if ((n = read(client_fd, buffer, BUFFER_SIZE)) > 0)
-            write(STDOUT_FILENO, buffer, n);
+        int ret = poll(&pfd, 1, 50);
 
-        if ((n = read(STDIN_FILENO, buffer, BUFFER_SIZE)) <= 0)
+        if (ret == -1)
+        {
+            // we can ignore this error
+            if (errno == EINTR)
+                continue;
+
+            perror("Poll failed! Perhaps something is wrong with keyboard input");
             break;
+        }
 
-        write(client_fd, buffer, n);
+        if ( ret > 0 && (pfd.revents & POLLIN))
+        {
+            unsigned char input_buffer[256];
+            ssize_t bytes_read = read(STDIN_FILENO, input_buffer, sizeof(input_buffer));
+
+            if ( bytes_read > 0 )
+            {
+                for (ssize_t i = 0; i < bytes_read; i++)
+                {
+                    // Buffer one line before sending
+                    unsigned char c = input_buffer[i];
+                    line_buffer[len++] = c;
+
+                    if (c == '\n' || len == sizeof(line_buffer))
+                    {
+                        write(client_fd, line_buffer, len);
+                        len = 0;
+                    }
+
+                    // If there is a need for special per character logic,
+                    // should be here.
+                }
+            }
+        }
+
+
+
+        ssize_t n = read(client_fd, buffer, BUFFER_SIZE);
+        if (n > 0)
+        {
+            write(STDOUT_FILENO, buffer, n);
+        }
+        else if (n == 0)
+        {
+            // client closed connection
+            puts("Connection closed from client\n");
+            break;
+        }
+        else if (errno == EAGAIN || errno == EWOULDBLOCK)
+        {
+            // Got no data
+        }
+        else
+        {
+            perror("Failed to read from the client socket. Likely closed");
+            break;
+        }
     }
 
     close(client_fd);
@@ -145,4 +217,40 @@ int recv_fd(int sock)
     int fd;
     memcpy(&fd, CMSG_DATA(cmsg), sizeof(fd)); // Copy fd out of the control data
     return fd;
+}
+
+
+/*
+ * The terminal needs to be setup so it
+ * does not use the default key-input management
+ * of the terminal.
+ *
+ * This is important to make read() non-blocking,
+ * but also will help later when I add handling for
+ * up arrow and ctrl+c
+ */
+static  void terminal_setup(void)
+{
+    struct termios t;
+
+    // Get current terminal state
+    tcgetattr(STDIN_FILENO, &t);
+
+    // Switch to non-canonical mode
+    t.c_lflag &= ~ICANON;
+
+
+    // Make sure echo is on
+    t.c_lflag |= ECHO;
+
+    // input returns immediately and without delay
+    t.c_cc[VMIN]  = 0;
+    t.c_cc[VTIME] = 0;
+
+    // Apply changes
+    tcsetattr(STDIN_FILENO, TCSANOW, &t);
+
+    // Mark the STDIN fd to be non-blocking
+    int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+    fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
 }
