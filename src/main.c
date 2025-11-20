@@ -15,6 +15,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include "client.h"
 #include "tmux_handler.h"
 
 #define UPORT 31398
@@ -22,16 +23,24 @@
 #define BUFFER_SIZE 1024
 
 void send_fd(int sock, int fd_to_send);
-void start_server(int tcp_port);
+void start_server(int tcp_port, char *argv0);
 
 
 int main(int argc, char *argv[])
 {
-    if (argc != 2) {
+    int tcp_port = 0;
+    if (argc == 2)
+    {
+        tcp_port = atoi(argv[1]);
+    }
+    else if (argc == 3 && strcmp(argv[1], "client-internal"))
+    {
+        client_main();
+    }
+    else {
         fprintf(stderr, "Usage: %s <tcp_port>\n", argv[0]);
         exit(1);
     }
-    int tcp_port = atoi(argv[1]);
 
     // check if we are already running on a tmux session
     if (getenv("TMUX") != NULL)
@@ -72,7 +81,7 @@ int main(int argc, char *argv[])
 
     puts(SPLASH);
 
-    start_server(tcp_port);
+    start_server(tcp_port, argv[0]);
     return 0;
 }
 
@@ -81,7 +90,7 @@ int main(int argc, char *argv[])
  * Start both a regular socket server
  * and an internal unix socket server
  */
-void start_server(int tcp_port)
+void start_server(int tcp_port, char *argv0)
 {
     int server_sock;
     int *client_sock;
@@ -175,7 +184,7 @@ void start_server(int tcp_port)
         }
 
         // Launch the client window
-        tmux_new_pane();
+        tmux_new_pane(argv0);
 
         printf("Connection received from %s:%d\n",
                 inet_ntoa(client_addr.sin_addr),

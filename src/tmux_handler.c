@@ -144,14 +144,18 @@ bool tmux_change_name()
  * Every other pane should be opened
  * vertically so tmux doesn't look weird
  */
-void tmux_new_pane()
+void tmux_new_pane(char *argv0)
 {
     int ret;
+    char command_buffer[512] = "";
 
+    // This sort of limits the maximum filename, but I don't think its a problem
     if (windows_opened % 3 == 0)
-        ret = system(TMUX_PANE_COMMAND_H);
+        snprintf(command_buffer, 512, TMUX_PANE_COMMAND_H, argv0);
     else
-        ret = system(TMUX_PANE_COMMAND_V);
+        snprintf(command_buffer, 512, TMUX_PANE_COMMAND_H, argv0);
+
+    ret = system(command_buffer);
 
     if (ret < 0)
         perror("Something went wrong when opening tmux panes");

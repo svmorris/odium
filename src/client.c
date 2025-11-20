@@ -16,28 +16,19 @@
 #include <sys/un.h>
 #include <stdbool.h>
 #include <termios.h>
-#include <sys/types.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "client.h"
 #include "tmux_handler.h"
 
-# define BUFFER_SIZE 4096
-
 int recv_fd(int sock);
-int get_peer_address(int fd, char *ip_str, size_t ip_str_len);
 static void terminal_setup(void);
+int get_peer_address(int fd, char *ip_str, size_t ip_str_len);
 
-int main(int argc, char **argv)
+int client_main()
 {
-    if (argc != 2)
-    {
-        fprintf(stderr, "Usage: %s <unix_socket_path>\n", argv[0]);
-        puts("This binary only functions correctly when called by the accompanying server. Are you sure you meant to run this?\n");
-        exit(-1);
-    }
-
     int usock;
     int client_fd; // fd of the client socket gotten from server
     struct sockaddr_un uaddr = {0};
@@ -51,7 +42,7 @@ int main(int argc, char **argv)
 
 
     uaddr.sun_family = AF_UNIX;
-    strncpy(uaddr.sun_path, argv[1], sizeof(uaddr.sun_path)-1);
+    strncpy(uaddr.sun_path, SOCK_PATH, sizeof(uaddr.sun_path)-1);
 
 
     if (connect(usock, (struct sockaddr*)&uaddr, sizeof(uaddr)) < 0)
@@ -87,7 +78,7 @@ int main(int argc, char **argv)
     };
 
     ssize_t len = 0;
-    char buffer[BUFFER_SIZE];
+    char buffer[CLIENT_BUFFER_SIZE];
     unsigned char line_buffer[512];
 
 
@@ -134,7 +125,7 @@ int main(int argc, char **argv)
 
 
 
-        ssize_t n = read(client_fd, buffer, BUFFER_SIZE);
+        ssize_t n = read(client_fd, buffer, CLIENT_BUFFER_SIZE);
         if (n > 0)
         {
             write(STDOUT_FILENO, buffer, n);
