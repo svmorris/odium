@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
     {
         tcp_port = atoi(argv[1]);
     }
-    else if (argc == 3 && strcmp(argv[1], "client-internal"))
+    else if (argc == 3 && strcmp(argv[1], "client-internal") == 0)
     {
         client_main();
     }
@@ -62,11 +62,12 @@ int main(int argc, char *argv[])
 
         if (strcmp(tmux_name, TMUX_SESSION_NAME) != 0)
         {
-            printf("Taking over current tmux shell.\n");
-            printf("WARNING: Odium will work worse (and look less cool) when inside tmux.");
-            if (!tmux_change_name())
-                exit(-10);
+            puts("Already in a tmux shell..");
+            puts("Odium uses tmux and cannot be run already from a tmux shell. Please re-lauch after closing tmux.");
+            exit(-10);
         }
+
+        tmux_decorate();
     }
     else
     {

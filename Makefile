@@ -18,15 +18,18 @@ DEPS = $(OBJ:.o=.d)
 # Output binary
 OUT = $(BIN_DIR)/odium
 
+TMUX_CONF   = configs/tmux.conf
+TMUX_HEADER = src/tmux_config.h          # ← moved into src/
+
 # Default target
-all: $(OUT)
+all: $(TMUX_HEADER) $(OUT)
 
 # Link odium
 $(OUT): $(OBJ) | $(BIN_DIR)
 	$(CC) $(CFLAGS) -o $@ $(OBJ)
 
 # Compile .c → .o (auto dependency generation)
-$(BUILD_DIR)/%.o: src/%.c | $(BUILD_DIR)
+$(BUILD_DIR)/%.o: src/%.c $(TMUX_HEADER) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # Debug build
@@ -40,13 +43,21 @@ $(BIN_DIR):
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
+# Generate header from config
+$(TMUX_HEADER): $(TMUX_CONF)
+	@echo "Generating tmux_config.h..."
+	@printf "const char *odium_tmux_conf = " > $(TMUX_HEADER)
+	@sed 's/\\/\\\\/g; s/"/\\"/g; s/^/"/; s/$$/\\n"\\/' $(TMUX_CONF) >> $(TMUX_HEADER)
+	@echo ";" >> $(TMUX_HEADER)
+
 # Run
 run: $(OUT)
 	./$(OUT)
 
 # Cleanup
 clean:
-	rm -rf $(BIN_DIR) $(BUILD_DIR)
+	rm -rf $(BIN_DIR) $(BUILD_DIR) $(TMUX_HEADER)
 
 # Include auto-generated deps
 -include $(DEPS)
+
