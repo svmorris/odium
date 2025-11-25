@@ -25,13 +25,15 @@
 // ./bin/o.. -- This forces you to run it from only the project directory.
 // I'm not a big fan of it, but I'm planning to make this a single
 // binary soon so its good enough for now.
-#define TMUX_PANE_COMMAND_H "tmux split-window -h './bin/odium-client-internal "  SOCK_PATH  "'"
-#define TMUX_PANE_COMMAND_V "tmux split-window -v './bin/odium-client-internal "  SOCK_PATH  "'"
+#define TMUX_PANE_COMMAND_H "tmux split-window -h '%s client-internal "  SOCK_PATH  "'"
+#define TMUX_PANE_COMMAND_V "tmux split-window -v '%s client-internal "  SOCK_PATH  "'"
 
-void tmux_new_pane();
+void tmux_decorate();
+void tmux_new_pane(char *argv0);
 bool tmux_change_name();
 void tmux_set_pane_name(char *name);
 void tmux_relaunch(int argc, char *argv[]);
 void tmux_get_name(char *buffer, int expected_name_size);
+
 
 #endif

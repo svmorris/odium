@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <sys/wait.h>
 
+#include "tmux_config.h"
 #include "tmux_handler.h"
 
 
@@ -64,8 +65,6 @@ void tmux_relaunch(int argc, char *argv[])
     tmux_args[i++] = "tmux";
     tmux_args[i++] = "-L";
     tmux_args[i++] = "odium";
-    tmux_args[i++] = "-f";
-    tmux_args[i++] = "./configs/tmux.conf";
     tmux_args[i++] = "new-session";
     tmux_args[i++] = "-s";
     tmux_args[i++] = (char *)TMUX_SESSION_NAME;
@@ -77,15 +76,36 @@ void tmux_relaunch(int argc, char *argv[])
 
     tmux_args[i] = NULL;
 
-    // Replace oneself with a better version
-    execvp("tmux", tmux_args);
-
-    /* for (int x = 0; x < (argc+5); x++) */
-    /*     printf("%s ", tmux_args[x]); */
+    /* pid_t pid = fork(); */
+    /* if (pid == 0) */
+        // Replace oneself with a better version
+        execvp("tmux", tmux_args);
+    /* else */
+        /* tmux_decorate(); */
 
     perror("Failed to launch with tmux");
     puts("Are you sure tmux is installed?\n");
     exit(-7);
+}
+
+void tmux_decorate()
+{
+    int fd[2];
+    pipe(fd);
+
+    pid_t pid = fork();
+    if (pid == 0)
+    {
+        dup2(fd[0], STDIN_FILENO);
+        close(fd[1]);
+        execlp("tmux", "tmux", "-L", "odium", "source-file", "-", NULL);
+    }
+    else
+    {
+        close(fd[0]);
+        write(fd[1], odium_tmux_conf, strlen(odium_tmux_conf));
+        close(fd[1]);
+    }
 }
 
 
@@ -144,14 +164,18 @@ bool tmux_change_name()
  * Every other pane should be opened
  * vertically so tmux doesn't look weird
  */
-void tmux_new_pane()
+void tmux_new_pane(char *argv0)
 {
     int ret;
+    char command_buffer[512] = "";
 
+    // This sort of limits the maximum filename, but I don't think its a problem
     if (windows_opened % 3 == 0)
-        ret = system(TMUX_PANE_COMMAND_H);
+        snprintf(command_buffer, 512, TMUX_PANE_COMMAND_H, argv0);
     else
-        ret = system(TMUX_PANE_COMMAND_V);
+        snprintf(command_buffer, 512, TMUX_PANE_COMMAND_H, argv0);
+
+    ret = system(command_buffer);
 
     if (ret < 0)
         perror("Something went wrong when opening tmux panes");
